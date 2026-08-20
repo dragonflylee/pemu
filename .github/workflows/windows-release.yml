@@ -18,21 +18,56 @@ jobs:
           update: true
           install: >-
             git zip perl make
-            mingw-w64-x86_64-binutils mingw-w64-x86_64-gcc mingw-w64-x86_64-make mingw-w64-x86_64-cmake mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-SDL2 mingw-w64-x86_64-freetype mingw-w64-x86_64-glm
-            mingw-w64-x86_64-glew mingw-w64-x86_64-libconfig mingw-w64-x86_64-tinyxml2
-            mingw-w64-x86_64-mpv mingw-w64-x86_64-zlib mingw-w64-x86_64-minizip mingw-w64-x86_64-libarchive
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake 
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-glm
+            mingw-w64-x86_64-libconfig
+            mingw-w64-x86_64-tinyxml2
+            mingw-w64-x86_64-minizip
+
+      - name: Build dependency
+        run: |
+          curl -sL https://curl.se/download/curl-8.21.0.tar.xz | tar Jxf - -C /tmp
+          cmake -B build-curl \
+            -G "MSYS Makefiles" \
+            -S /tmp/curl-8.21.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=${MINGW_PREFIX} \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_STATIC_LIBS=ON \
+            -DENABLE_CURL_MANUAL=OFF \
+            -DBUILD_LIBCURL_DOCS=OFF \
+            -DBUILD_MISC_DOCS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTING=OFF \
+            -DHTTP_ONLY=ON \
+            -DCURL_USE_SCHANNEL=ON \
+            -DBUILD_CURL_EXE=OFF \
+            -DUSE_NGHTTP2=OFF \
+            -DUSE_LIBIDN2=OFF \
+            -DUSE_WIN32_IDN=ON \
+            -DCURL_BROTLI=OFF \
+            -DCURL_ZSTD=OFF \
+            -DCURL_USE_LIBSSH2=OFF \
+            -DCURL_USE_LIBPSL=OFF \
+            -DZLIB_USE_STATIC_LIBS=ON
+          make -C build-curl
+          make -C build-curl install
 
       - name: '🧰 Checkout'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       - name: Configure
         run: |
           cd $GITHUB_WORKSPACE
+          sed -i 's|#set|set|' external/libcross2d/cmake/toolchain.cmake
           mkdir cmake-build && cd cmake-build
-          cmake -G "MSYS Makefiles" -DPLATFORM_WINDOWS=ON -DCMAKE_BUILD_TYPE=Release ..
+          cmake -G "MSYS Makefiles" -DPLATFORM_WINDOWS=ON -DCMAKE_BUILD_TYPE=Release -DOPTION_MPV_PLAYER=OFF ..
 
       - name: Build pfbneo
         run: |
@@ -47,11 +82,11 @@ jobs:
           make pgen_windows_release
           mv *.zip $GITHUB_WORKSPACE
 
-      - name: Build pnes
-        run: |
-          cd $GITHUB_WORKSPACE/cmake-build
-          make pnes_windows_release
-          mv *.zip $GITHUB_WORKSPACE
+      #- name: Build pnes
+      #  run: |
+      #    cd $GITHUB_WORKSPACE/cmake-build
+      #    make pnes_windows_release
+      #    mv *.zip $GITHUB_WORKSPACE
 
       - name: Build psnes
         run: |
@@ -66,7 +101,7 @@ jobs:
       #    mv *.zip $GITHUB_WORKSPACE
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ startsWith(github.ref, 'refs/tags/') && !env.ACT }}
         with:
           files: '*.zip'
